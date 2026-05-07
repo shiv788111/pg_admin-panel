@@ -8,6 +8,15 @@ import Complaints from "./pages/Complaints";
 import Amenities from "./pages/Amenities";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Expenses from "./pages/Expenses";
+
+import OccupancyReport from "./pages/reports/OccupancyReport";
+import TenantReport from "./pages/reports/TenantReport";
+import AgreementReport from "./pages/reports/AgreementReport";
+import DaywiseReport from "./pages/reports/DaywiseReport";
+import RefundReport from "./pages/reports/RefundReport";
+import RoomOccupancyReport from "./pages/reports/RoomOccupancyReport";
+import DueRentReport from "./pages/reports/DueRentReport";
 
 function App() {
   return (
@@ -15,22 +24,38 @@ function App() {
       <Routes>
         {/* Login page - public route */}
         <Route path="/login" element={<Login />} />
-        
+
         {/* Protected routes - require authentication */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="tenants" element={<Tenants />} />
+          <Route path="/expenses" element={<Expenses />} />
           <Route path="rooms" element={<Rooms />} />
           <Route path="payments" element={<Payments />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="amenities" element={<Amenities />} />
+
+          {/* Reports Routes */}
+          <Route path="reports/occupancy" element={<OccupancyReport />} />
+          <Route path="reports/tenants" element={<TenantReport />} />
+          <Route path="reports/agreements" element={<AgreementReport />} />
+          <Route path="reports/daywise" element={<DaywiseReport />} />
+          <Route path="reports/refund" element={<RefundReport />} />
+          <Route
+            path="reports/room-occupancy"
+            element={<RoomOccupancyReport />}
+          />
+          <Route path="reports/due-rent" element={<DueRentReport />} />
         </Route>
-        
+
         {/* Redirect any unknown routes to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
