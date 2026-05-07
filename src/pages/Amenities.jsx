@@ -197,7 +197,7 @@ function Amenities() {
             onClick={handleAdd}
             className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 justify-center"
           >
-            ➕ Add Amenity
+           Add Amenity
           </button>
         </div>
 
@@ -294,7 +294,7 @@ function Amenities() {
       {/* Save Button */}
       <div className="mt-8 flex justify-end gap-3">
         <button className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
-          💾 Save Changes
+          Save Changes
         </button>
       </div>
     </div>

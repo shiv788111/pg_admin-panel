@@ -22,13 +22,33 @@ import {
   RefreshCw,
   BedDouble,
   AlertCircle,
+  Menu,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-function Sidebar() {
+function Sidebar({ isMobileOpen, onClose }) {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState({});
+
+  // Close sidebar on mobile when route changes
+  useEffect(() => {
+    if (isMobileOpen && onClose) {
+      onClose();
+    }
+  }, [location.pathname]);
+
+  // Handle window resize - close mobile sidebar if screen becomes larger
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [onClose]);
 
   const toggleSubmenu = (path) => {
     setOpenSubmenus((prev) => ({
@@ -48,7 +68,6 @@ function Sidebar() {
       icon: FileText,
       hasSubmenu: true,
       subItems: [
-       
         { path: "/reports/tenants", name: "Tenant Report", icon: UserCheck },
         {
           path: "/reports/agreements",
@@ -78,18 +97,25 @@ function Sidebar() {
     { path: "/attendance", name: "Attendance", icon: Calendar },
     { path: "/expenses", name: "Expenses", icon: TrendingUp },
     { path: "/complaints", name: "Complaints", icon: ClipboardList },
-
     { path: "/settings", name: "Settings", icon: UserCog },
   ];
 
+  const handleLogout = () => {
+    // Add your logout logic here
+    console.log("Logout clicked");
+    if (onClose) onClose();
+  };
+
   return (
     <aside
-      className={`h-full bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-2xl transition-all duration-300 flex flex-col
-        ${isCollapsed ? "w-20" : "w-64"}`}
+      className={`
+        h-full bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-2xl transition-all duration-300 flex flex-col
+        ${isCollapsed ? "w-20" : "w-64"}
+      `}
     >
       {/* Logo Section */}
       <div className="flex items-center justify-between p-5 border-b border-gray-700/50">
-        <Link to="/" className="flex items-center gap-3 overflow-hidden">
+        <Link to="/" className="flex items-center gap-3 overflow-hidden" onClick={onClose}>
           <div className="bg-indigo-500 p-2 rounded-xl">
             <Home className="w-5 h-5" />
           </div>
@@ -100,12 +126,22 @@ function Sidebar() {
             </div>
           )}
         </Link>
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors hidden lg:block"
-        >
-          {isCollapsed ? "→" : "←"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Close button for mobile */}
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors lg:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          {/* Collapse/Expand button for desktop */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors hidden lg:block"
+          >
+            {isCollapsed ? "→" : "←"}
+          </button>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -122,7 +158,7 @@ function Sidebar() {
                   <>
                     <button
                       onClick={() => !isCollapsed && toggleSubmenu(item.path)}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
                         ${
                           isActive || location.pathname.startsWith("/reports/")
                             ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
@@ -157,9 +193,9 @@ function Sidebar() {
                     {!isCollapsed && (
                       <div
                         className={`
-                        overflow-hidden transition-all duration-300 ease-in-out
-                        ${isSubmenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}
-                      `}
+                          overflow-hidden transition-all duration-300 ease-in-out
+                          ${isSubmenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}
+                        `}
                       >
                         <ul className="mt-1 ml-4 space-y-1">
                           {item.subItems.map((subItem) => {
@@ -171,6 +207,7 @@ function Sidebar() {
                               <li key={subItem.path}>
                                 <Link
                                   to={subItem.path}
+                                  onClick={onClose}
                                   className={`
                                     flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200
                                     transform hover:translate-x-1
@@ -196,6 +233,7 @@ function Sidebar() {
                 ) : (
                   <Link
                     to={item.path}
+                    onClick={onClose}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
                       ${
                         isActive
@@ -225,7 +263,10 @@ function Sidebar() {
       {/* Bottom Section */}
       <div className="border-t border-gray-700/50 p-3 mt-auto">
         <div className="space-y-1">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 group relative">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 group relative"
+          >
             <LogOut className="w-5 h-5" />
             {!isCollapsed && <span className="font-medium">Logout</span>}
             {isCollapsed && (
