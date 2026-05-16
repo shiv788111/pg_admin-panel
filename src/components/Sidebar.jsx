@@ -24,6 +24,8 @@ import {
   AlertCircle,
   Menu,
   X,
+  Building2,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -46,8 +48,8 @@ function Sidebar({ isMobileOpen, onClose }) {
         onClose();
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [onClose]);
 
   const toggleSubmenu = (path) => {
@@ -59,6 +61,26 @@ function Sidebar({ isMobileOpen, onClose }) {
 
   const navItems = [
     { path: "/", name: "Dashboard", icon: LayoutDashboard },
+    { path: "/pg", name: "PG", icon: Home },
+    {
+      path: "/management",
+      name: "Management",
+      icon: Building2,
+      hasSubmenu: true,
+      subItems: [
+        {
+          path: "/branches",
+          name: "Branches",
+          icon: Building2,
+        },
+        {
+          path: "/managers",
+          name: "Managers",
+          icon: UserCog,
+        },
+       
+      ],
+    },
     { path: "/tenants", name: "Tenants", icon: Users },
     { path: "/rooms", name: "Rooms", icon: DoorOpen },
     { path: "/amenities", name: "Amenities", icon: Home },
@@ -93,6 +115,19 @@ function Sidebar({ isMobileOpen, onClose }) {
       ],
     },
     { path: "/payments", name: "Payments", icon: DollarSign },
+    {
+      path: "/food",
+      name: "Meal",
+      icon: UtensilsCrossed,
+      hasSubmenu: true,
+      subItems: [
+        {
+          path: "/meal-plans",
+          name: "Meal Plans",
+          icon: ClipboardList,
+        },
+      ],
+    },
     { path: "/maintenance", name: "Maintenance", icon: Settings },
     { path: "/attendance", name: "Attendance", icon: Calendar },
     { path: "/expenses", name: "Expenses", icon: TrendingUp },
@@ -115,7 +150,11 @@ function Sidebar({ isMobileOpen, onClose }) {
     >
       {/* Logo Section */}
       <div className="flex items-center justify-between p-5 border-b border-gray-700/50">
-        <Link to="/" className="flex items-center gap-3 overflow-hidden" onClick={onClose}>
+        <Link
+          to="/"
+          className="flex items-center gap-3 overflow-hidden"
+          onClick={onClose}
+        >
           <div className="bg-indigo-500 p-2 rounded-xl">
             <Home className="w-5 h-5" />
           </div>

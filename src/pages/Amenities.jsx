@@ -1,287 +1,555 @@
-import { useState } from "react";
-import { 
-  Wifi, Dumbbell, Car, Shield, Tv, Utensils, Wind, Battery, 
-  Sparkles, Coffee, Snowflake, Mic, Book, Music, Heart, 
-  ShoppingBag, Droplets, Sun, Moon, Zap, CheckCircle, XCircle 
+import { useState, useEffect } from "react";
+import {
+  Wifi,
+  Dumbbell,
+  Car,
+  Shield,
+  Tv,
+  Utensils,
+  Wind,
+  Battery,
+  Sparkles,
+  Coffee,
+  Snowflake,
+  Mic,
+  Book,
+  Music,
+  Heart,
+  ShoppingBag,
+  Droplets,
+  Sun,
+  Moon,
+  Zap,
+  CheckCircle,
+  XCircle,
+  Plus,
+  X,
+  Edit,
+  Trash2,
+  Search,
+  Filter,
+  Download,
 } from "lucide-react";
+import {
+  getAmenities,
+  createAmenity,
+  updateAmenity,
+  deleteAmenity,
+  assignAmenityToRoom,
+  getRoomAmenities,
+} from "../services/amenities";
 
 function Amenities() {
-  // Pre-loaded common PG amenities
-  const [amenities, setAmenities] = useState([
-    { id: 1, name: "WiFi", icon: "Wifi", checked: true, category: "basic" },
-    { id: 2, name: "24/7 Power Backup", icon: "Battery", checked: true, category: "basic" },
-    { id: 3, name: "Air Conditioning", icon: "Wind", checked: false, category: "basic" },
-    { id: 4, name: "Geyser", icon: "Droplets", checked: true, category: "basic" },
-    { id: 5, name: "Gym", icon: "Dumbbell", checked: false, category: "premium" },
-    { id: 6, name: "Parking", icon: "Car", checked: true, category: "premium" },
-    { id: 7, name: "CCTV Security", icon: "Shield", checked: true, category: "security" },
-    { id: 8, name: "Common TV", icon: "Tv", checked: false, category: "entertainment" },
-    { id: 9, name: "Tiffin Service", icon: "Utensils", checked: false, category: "dining" },
-    { id: 10, name: "Tea/Coffee Machine", icon: "Coffee", checked: false, category: "dining" },
-  ]);
-
-  const [newAmenity, setNewAmenity] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("basic");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  // Suggested amenities for quick add
-  const suggestions = [
-    { name: "Study Room", icon: "Book", category: "basic" },
-    { name: "Meditation Area", icon: "Heart", category: "basic" },
-    { name: "Rooftop Access", icon: "Sun", category: "premium" },
-    { name: "Laundry Service", icon: "Zap", category: "premium" },
-    { name: "Visitor Lounge", icon: "Coffee", category: "premium" },
-    { name: "Indoor Games", icon: "Music", category: "entertainment" },
-    { name: "Music Room", icon: "Music", category: "entertainment" },
-    { name: "Water Purifier", icon: "Droplets", category: "basic" },
-    { name: "Refrigerator", icon: "Snowflake", category: "basic" },
-    { name: "Microwave", icon: "Mic", category: "dining" },
-  ];
-
-  const iconMap = {
-    Wifi, Dumbbell, Car, Shield, Tv, Utensils, Wind, Battery, 
-    Sparkles, Coffee, Snowflake, Mic, Book, Music, Heart, 
-    ShoppingBag, Droplets, Sun, Moon, Zap
-  };
+  const [amenities, setAmenities] = useState([]);
+  const [filteredAmenities, setFilteredAmenities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedAmenity, setSelectedAmenity] = useState(null);
+  const [roomId, setRoomId] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
 
   const categories = {
-    basic: { name: "Basic Amenities", color: "border-blue-200 bg-blue-50" },
-    premium: { name: "Premium Facilities", color: "border-purple-200 bg-purple-50" },
-    security: { name: "Security Features", color: "border-green-200 bg-green-50" },
-    entertainment: { name: "Entertainment", color: "border-pink-200 bg-pink-50" },
-    dining: { name: "Dining Services", color: "border-orange-200 bg-orange-50" }
+    basic: {
+      name: "Basic Amenities",
+      color: "border-blue-200 bg-blue-50",
+      icon: "Wifi",
+    },
+    premium: {
+      name: "Premium Facilities",
+      color: "border-purple-200 bg-purple-50",
+      icon: "Sparkles",
+    },
+    security: {
+      name: "Security Features",
+      color: "border-green-200 bg-green-50",
+      icon: "Shield",
+    },
+    entertainment: {
+      name: "Entertainment",
+      color: "border-pink-200 bg-pink-50",
+      icon: "Tv",
+    },
+    dining: {
+      name: "Dining Services",
+      color: "border-orange-200 bg-orange-50",
+      icon: "Utensils",
+    },
   };
 
-  const handleToggle = (id) => {
-    setAmenities(amenities.map(amenity => 
-      amenity.id === id ? { ...amenity, checked: !amenity.checked } : amenity
-    ));
+  // Auto-categorize amenities based on name
+  const getCategoryFromName = (name) => {
+    const name_lower = name.toLowerCase();
+    if (
+      name_lower.includes("wifi") ||
+      name_lower.includes("internet") ||
+      name_lower.includes("ac") ||
+      name_lower.includes("cooler") ||
+      name_lower.includes("fan") ||
+      name_lower.includes("light") ||
+      name_lower.includes("water") ||
+      name_lower.includes("geyser") ||
+      name_lower.includes("bed")
+    ) {
+      return "basic";
+    }
+    if (
+      name_lower.includes("gym") ||
+      name_lower.includes("parking") ||
+      name_lower.includes("pool") ||
+      name_lower.includes("terrace") ||
+      name_lower.includes("garden") ||
+      name_lower.includes("rooftop") ||
+      name_lower.includes("lounge") ||
+      name_lower.includes("club")
+    ) {
+      return "premium";
+    }
+    if (
+      name_lower.includes("cctv") ||
+      name_lower.includes("security") ||
+      name_lower.includes("safety") ||
+      name_lower.includes("guard") ||
+      name_lower.includes("locker") ||
+      name_lower.includes("safe")
+    ) {
+      return "security";
+    }
+    if (
+      name_lower.includes("tv") ||
+      name_lower.includes("music") ||
+      name_lower.includes("game") ||
+      name_lower.includes("movie") ||
+      name_lower.includes("sports") ||
+      name_lower.includes("play")
+    ) {
+      return "entertainment";
+    }
+    if (
+      name_lower.includes("food") ||
+      name_lower.includes("tiffin") ||
+      name_lower.includes("meal") ||
+      name_lower.includes("kitchen") ||
+      name_lower.includes("cooking") ||
+      name_lower.includes("dining") ||
+      name_lower.includes("coffee") ||
+      name_lower.includes("tea")
+    ) {
+      return "dining";
+    }
+    return "basic";
   };
 
-  const handleAdd = () => {
-    if (!newAmenity.trim()) {
-      alert("Please enter an amenity name");
+  const getIconFromName = (name) => {
+    const name_lower = name.toLowerCase();
+    if (name_lower.includes("wifi")) return "Wifi";
+    if (name_lower.includes("ac") || name_lower.includes("cooler"))
+      return "Wind";
+    if (name_lower.includes("gym")) return "Dumbbell";
+    if (name_lower.includes("parking")) return "Car";
+    if (name_lower.includes("cctv") || name_lower.includes("security"))
+      return "Shield";
+    if (name_lower.includes("tv")) return "Tv";
+    if (name_lower.includes("food") || name_lower.includes("tiffin"))
+      return "Utensils";
+    if (name_lower.includes("coffee") || name_lower.includes("tea"))
+      return "Coffee";
+    if (name_lower.includes("water")) return "Droplets";
+    if (name_lower.includes("power") || name_lower.includes("backup"))
+      return "Battery";
+    if (name_lower.includes("music") || name_lower.includes("game"))
+      return "Music";
+    if (name_lower.includes("book") || name_lower.includes("study"))
+      return "Book";
+    if (name_lower.includes("laundry")) return "Zap";
+    return "Sparkles";
+  };
+
+  const iconMap = {
+    Wifi,
+    Dumbbell,
+    Car,
+    Shield,
+    Tv,
+    Utensils,
+    Wind,
+    Battery,
+    Sparkles,
+    Coffee,
+    Snowflake,
+    Mic,
+    Book,
+    Music,
+    Heart,
+    ShoppingBag,
+    Droplets,
+    Sun,
+    Moon,
+    Zap,
+  };
+
+  // Fetch amenities from API
+  const fetchAmenities = async () => {
+    setLoading(true);
+    const response = await getAmenities();
+    console.log("Amenities response:", response);
+
+    if (response.success) {
+      const formattedAmenities = response.data.map((amenity) => ({
+        id: amenity.amenity_id,
+        name: amenity.name,
+        description: amenity.description || "",
+        icon: getIconFromName(amenity.name),
+        category: getCategoryFromName(amenity.name),
+        checked: true,
+        created_at: amenity.created_at,
+        updated_at: amenity.updated_at,
+      }));
+      setAmenities(formattedAmenities);
+      setFilteredAmenities(formattedAmenities);
+    } else {
+      alert(response.message || "Failed to fetch amenities");
+    }
+    setLoading(false);
+  };
+
+  // Create amenity
+  const handleCreateAmenity = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const amenityData = {
+      name: formData.name,
+      description: formData.description,
+    };
+
+    const response = await createAmenity(amenityData);
+
+    if (response.success) {
+      alert("Amenity added successfully!");
+      setShowAddModal(false);
+      resetForm();
+      fetchAmenities();
+    } else {
+      alert(response.message || "Failed to add amenity");
+    }
+    setLoading(false);
+  };
+
+  // Update amenity
+  const handleUpdateAmenity = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const amenityData = {
+      name: formData.name,
+      description: formData.description,
+    };
+
+    const response = await updateAmenity(selectedAmenity.id, amenityData);
+
+    if (response.success) {
+      alert("Amenity updated successfully!");
+      setShowEditModal(false);
+      resetForm();
+      fetchAmenities();
+    } else {
+      alert(response.message || "Failed to update amenity");
+    }
+    setLoading(false);
+  };
+
+  // Delete amenity
+  const handleDeleteAmenity = async (amenityId) => {
+    if (window.confirm("Are you sure you want to delete this amenity?")) {
+      setLoading(true);
+      const response = await deleteAmenity(amenityId);
+
+      if (response.success) {
+        alert("Amenity deleted successfully!");
+        fetchAmenities();
+      } else {
+        alert(response.message || "Failed to delete amenity");
+      }
+      setLoading(false);
+    }
+  };
+
+  // Assign amenity to room
+  const handleAssignToRoom = async (e) => {
+    e.preventDefault();
+    if (!roomId || !selectedAmenity) {
+      alert("Please select a room");
       return;
     }
 
-    // Check if amenity already exists
-    if (amenities.some(a => a.name.toLowerCase() === newAmenity.toLowerCase())) {
-      alert("This amenity already exists!");
-      return;
+    setLoading(true);
+    const assignData = {
+      room_id: parseInt(roomId),
+      amenity_id: selectedAmenity.id,
+    };
+
+    const response = await assignAmenityToRoom(assignData);
+
+    if (response.success) {
+      alert("Amenity assigned to room successfully!");
+      setShowAssignModal(false);
+      setRoomId("");
+      setSelectedAmenity(null);
+    } else {
+      alert(response.message || "Failed to assign amenity");
+    }
+    setLoading(false);
+  };
+
+  // Form handling
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+    });
+    setSelectedAmenity(null);
+    setRoomId("");
+  };
+
+  const openEditModal = (amenity) => {
+    setSelectedAmenity(amenity);
+    setFormData({
+      name: amenity.name,
+      description: amenity.description,
+    });
+    setShowEditModal(true);
+  };
+
+  const openAssignModal = (amenity) => {
+    setSelectedAmenity(amenity);
+    setShowAssignModal(true);
+  };
+
+  // Search and filter
+  useEffect(() => {
+    let filtered = amenities;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (amenity) =>
+          amenity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          amenity.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
     }
 
-    const newId = Math.max(...amenities.map(a => a.id), 0) + 1;
-    
-    // Auto-assign icon based on category
-    let defaultIcon = "Sparkles";
-    if (selectedCategory === "basic") defaultIcon = "Wifi";
-    if (selectedCategory === "premium") defaultIcon = "Sparkles";
-    if (selectedCategory === "security") defaultIcon = "Shield";
-    if (selectedCategory === "entertainment") defaultIcon = "Tv";
-    if (selectedCategory === "dining") defaultIcon = "Utensils";
-
-    setAmenities([...amenities, {
-      id: newId,
-      name: newAmenity,
-      icon: defaultIcon,
-      checked: true,
-      category: selectedCategory
-    }]);
-    
-    setNewAmenity("");
-    setShowSuggestions(false);
-  };
-
-  const handleAddSuggestion = (suggestion) => {
-    // Check if already exists
-    if (amenities.some(a => a.name === suggestion.name)) {
-      alert(`${suggestion.name} already exists!`);
-      return;
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(
+        (amenity) => amenity.category === selectedCategory,
+      );
     }
 
-    const newId = Math.max(...amenities.map(a => a.id), 0) + 1;
-    setAmenities([...amenities, {
-      id: newId,
-      name: suggestion.name,
-      icon: suggestion.icon,
-      checked: true,
-      category: suggestion.category
-    }]);
+    setFilteredAmenities(filtered);
+  }, [searchTerm, selectedCategory, amenities]);
+
+  useEffect(() => {
+    fetchAmenities();
+  }, []);
+
+  const checkedCount = amenities.filter((a) => a.checked).length;
+
+  // Group amenities by category
+  const amenitiesByCategory = {
+    basic: filteredAmenities.filter((a) => a.category === "basic"),
+    premium: filteredAmenities.filter((a) => a.category === "premium"),
+    security: filteredAmenities.filter((a) => a.category === "security"),
+    entertainment: filteredAmenities.filter(
+      (a) => a.category === "entertainment",
+    ),
+    dining: filteredAmenities.filter((a) => a.category === "dining"),
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Remove this amenity?")) {
-      setAmenities(amenities.filter(amenity => amenity.id !== id));
-    }
-  };
-
-  const handleSelectAll = () => {
-    setAmenities(amenities.map(amenity => ({ ...amenity, checked: true })));
-  };
-
-  const handleDeselectAll = () => {
-    setAmenities(amenities.map(amenity => ({ ...amenity, checked: false })));
-  };
-
-  const checkedCount = amenities.filter(a => a.checked).length;
+  if (loading && amenities.length === 0) {
+    return (
+      <div className="p-6 bg-white min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading amenities...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-white min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Amenities</h1>
-        <p className="text-gray-500 mt-1">Select the facilities available at your PG</p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Amenities Management
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Manage all PG amenities and assign them to rooms
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all flex items-center gap-2 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add New Amenity
+            </button>
+            <button className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="border border-gray-200 rounded-xl p-4">
+        <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
           <p className="text-sm text-gray-500">Total Amenities</p>
           <p className="text-2xl font-bold text-gray-800">{amenities.length}</p>
         </div>
-        <div className="border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Selected</p>
-          <p className="text-2xl font-bold text-green-600">{checkedCount}</p>
-        </div>
-        <div className="border border-gray-200 rounded-xl p-4">
+        <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
           <p className="text-sm text-gray-500">Categories</p>
           <p className="text-2xl font-bold text-gray-800">5</p>
         </div>
-        <div className="border border-gray-200 rounded-xl p-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={handleSelectAll}
-              className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-            >
-              Select All
-            </button>
-            <button 
-              onClick={handleDeselectAll}
-              className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-            >
-              Clear All
-            </button>
-          </div>
+        <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+          <p className="text-sm text-gray-500">Total Rooms</p>
+          <p className="text-2xl font-bold text-gray-800">-</p>
+        </div>
+        <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+          <p className="text-sm text-gray-500">Assignments</p>
+          <p className="text-2xl font-bold text-gray-800">-</p>
         </div>
       </div>
 
-      {/* Add New Amenity - Fixed */}
+      {/* Search and Filter Bar */}
       <div className="border border-gray-200 rounded-xl p-4 mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Add New Amenity</label>
-        <div className="flex flex-col md:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="e.g., Swimming Pool, Rooftop Garden, Study Room..."
-            value={newAmenity}
-            onChange={(e) => {
-              setNewAmenity(e.target.value);
-              if (e.target.value.length > 2) setShowSuggestions(true);
-              else setShowSuggestions(false);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-          />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
-          >
-            <option value="basic">Basic Amenities</option>
-            <option value="premium">Premium Facilities</option>
-            <option value="security">Security Features</option>
-            <option value="entertainment">Entertainment</option>
-            <option value="dining">Dining Services</option>
-          </select>
-          <button
-            onClick={handleAdd}
-            className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 justify-center"
-          >
-           Add Amenity
-          </button>
-        </div>
-
-        {/* Suggestions Dropdown */}
-        {showSuggestions && newAmenity.length > 0 && (
-          <div className="mt-3 border border-gray-200 rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto">
-            {suggestions
-              .filter(s => s.name.toLowerCase().includes(newAmenity.toLowerCase()))
-              .map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setNewAmenity(suggestion.name);
-                    setSelectedCategory(suggestion.category);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100 last:border-0"
-                >
-                  <span className="text-gray-400">✨</span>
-                  <span>{suggestion.name}</span>
-                  <span className="text-xs text-gray-400 ml-auto">{suggestion.category}</span>
-                </button>
-              ))}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search amenities by name or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
           </div>
-        )}
-      </div>
-
-      {/* Quick Add Suggestions */}
-      <div className="mb-8">
-        <p className="text-sm text-gray-600 mb-3">✨ Quick add popular amenities:</p>
-        <div className="flex flex-wrap gap-2">
-          {suggestions.slice(0, 8).map((suggestion, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleAddSuggestion(suggestion)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-full hover:bg-gray-100 transition-colors flex items-center gap-1"
+          <div className="flex gap-3">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
             >
-              + {suggestion.name}
+              <option value="all">All Categories</option>
+              <option value="basic">Basic Amenities</option>
+              <option value="premium">Premium Facilities</option>
+              <option value="security">Security Features</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="dining">Dining Services</option>
+            </select>
+            <button className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filter
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
       {/* Amenities List - Category Wise */}
       <div className="space-y-6">
-        {Object.entries(categories).map(([catKey, cat]) => {
-          const catAmenities = amenities.filter(a => a.category === catKey);
+        {Object.entries(amenitiesByCategory).map(([catKey, catAmenities]) => {
           if (catAmenities.length === 0) return null;
-          
+          const cat = categories[catKey];
+
           return (
-            <div key={catKey} className="border border-gray-200 rounded-xl overflow-hidden">
+            <div
+              key={catKey}
+              className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all"
+            >
               <div className={`px-4 py-3 ${cat.color} border-b`}>
-                <h2 className="font-semibold text-gray-800">{cat.name}</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800">{cat.name}</h2>
+                  <span className="text-sm text-gray-500">
+                    {catAmenities.length} amenities
+                  </span>
+                </div>
               </div>
               <div className="divide-y divide-gray-200">
                 {catAmenities.map((amenity) => {
                   const IconComponent = iconMap[amenity.icon] || Sparkles;
-                  
+
                   return (
-                    <div key={amenity.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={amenity.checked}
-                            onChange={() => handleToggle(amenity.id)}
-                            className="w-5 h-5 rounded border-gray-300 text-gray-900 focus:ring-gray-900 cursor-pointer"
-                          />
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <IconComponent className="w-4 h-4 text-gray-600" />
-                            </div>
-                            <span className={`${amenity.checked ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
+                    <div
+                      key={amenity.id}
+                      className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <IconComponent className="w-5 h-5 text-gray-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-800">
                               {amenity.name}
                             </span>
+                            <span className="text-xs text-gray-400">
+                              ID: {amenity.id}
+                            </span>
                           </div>
-                        </label>
+                          {amenity.description && (
+                            <p className="text-sm text-gray-500 mt-0.5">
+                              {amenity.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-xs text-gray-400">
+                              Added:{" "}
+                              {new Date(
+                                amenity.created_at,
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleDelete(amenity.id)}
-                        className="text-gray-400 hover:text-red-600 transition-colors text-sm"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openAssignModal(amenity)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Assign to room"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openEditModal(amenity)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAmenity(amenity.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -291,12 +559,258 @@ function Amenities() {
         })}
       </div>
 
-      {/* Save Button */}
-      <div className="mt-8 flex justify-end gap-3">
-        <button className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
-          Save Changes
-        </button>
-      </div>
+      {/* Empty State */}
+      {filteredAmenities.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-12 h-12 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            No amenities found
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Try adjusting your search or add a new amenity
+          </p>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Add New Amenity
+          </button>
+        </div>
+      )}
+
+      {/* Add Amenity Modal */}
+      {showAddModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => {
+              setShowAddModal(false);
+              resetForm();
+            }}
+          ></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">
+                Add New Amenity
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateAmenity} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amenity Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="e.g., WiFi, AC, Gym, Parking"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
+                  placeholder="Brief description of the amenity..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Adding..." : "Add Amenity"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    resetForm();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Edit Amenity Modal */}
+      {showEditModal && selectedAmenity && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => {
+              setShowEditModal(false);
+              resetForm();
+            }}
+          ></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Edit Amenity</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  resetForm();
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateAmenity} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amenity Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Updating..." : "Update Amenity"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    resetForm();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Assign to Room Modal */}
+      {showAssignModal && selectedAmenity && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => {
+              setShowAssignModal(false);
+              resetForm();
+            }}
+          ></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">
+                Assign Amenity to Room
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  resetForm();
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAssignToRoom} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Amenity
+                </label>
+                <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    {selectedAmenity &&
+                      (() => {
+                        const IconComp =
+                          iconMap[selectedAmenity.icon] || Sparkles;
+                        return <IconComp className="w-4 h-4 text-gray-600" />;
+                      })()}
+                    <span className="font-medium">{selectedAmenity.name}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Room ID *
+                </label>
+                <input
+                  type="number"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  required
+                  placeholder="Enter room ID"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter the room ID to assign this amenity
+                </p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Assigning..." : "Assign to Room"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAssignModal(false);
+                    resetForm();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
     </div>
   );
 }

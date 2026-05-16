@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Download,
@@ -34,8 +34,17 @@ import {
   Landmark,
   CreditCard,
   Smartphone,
-  Banknote
+  Banknote,
+  X
 } from 'lucide-react';
+import { 
+  getExpenses, 
+  createExpense, 
+  updateExpense, 
+  deleteExpense,
+  getExpenseCategories,
+  createExpenseCategory
+} from '../services/expenses';
 
 const Expenses = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,246 +53,260 @@ const Expenses = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [expenses, setExpenses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newCategory, setNewCategory] = useState('');
   const itemsPerPage = 10;
 
-  // Mock data for expenses
-  const expenses = [
-    {
-      id: 1,
-      title: 'Monthly Electricity Bill',
-      category: 'utilities',
-      subCategory: 'Electricity',
-      amount: 12500,
-      date: '2024-10-05',
-      paymentMode: 'Bank Transfer',
-      status: 'paid',
-      vendor: 'Tata Power',
-      billNumber: 'EP-2024-1001',
-      description: 'Electricity bill for September 2024',
-      receipt: true,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 2,
-      title: 'Water Supply Charges',
-      category: 'utilities',
-      subCategory: 'Water',
-      amount: 3500,
-      date: '2024-10-03',
-      paymentMode: 'UPI',
-      status: 'paid',
-      vendor: 'Municipal Corporation',
-      billNumber: 'WS-2024-045',
-      description: 'Water supply bill',
-      receipt: true,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 3,
-      title: 'WiFi/Internet Bill',
-      category: 'utilities',
-      subCategory: 'Internet',
-      amount: 1500,
-      date: '2024-10-01',
-      paymentMode: 'UPI',
-      status: 'paid',
-      vendor: 'Jio Fiber',
-      billNumber: 'JIO-100234',
-      description: 'Internet connection',
-      receipt: true,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 4,
-      title: 'Security Guard Salary',
-      category: 'staff',
-      subCategory: 'Security',
-      amount: 18000,
-      date: '2024-10-01',
-      paymentMode: 'Bank Transfer',
-      status: 'paid',
-      vendor: 'Ramesh (Guard)',
-      billNumber: null,
-      description: 'Monthly salary for security guard',
-      receipt: false,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 5,
-      title: 'Cleaning Staff Salary',
-      category: 'staff',
-      subCategory: 'Cleaning',
-      amount: 12000,
-      date: '2024-10-01',
-      paymentMode: 'Cash',
-      status: 'paid',
-      vendor: 'Lakshmi (Cleaner)',
-      billNumber: null,
-      description: 'Monthly salary for cleaning staff',
-      receipt: false,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 6,
-      title: 'Building Maintenance',
-      category: 'maintenance',
-      subCategory: 'Repairs',
-      amount: 8500,
-      date: '2024-10-08',
-      paymentMode: 'Bank Transfer',
-      status: 'paid',
-      vendor: 'Sharma Repairs',
-      billNumber: 'MR-2024-089',
-      description: 'Common area painting and repairs',
-      receipt: true,
-      recurring: false,
-      frequency: null
-    },
-    {
-      id: 7,
-      title: 'Gardening Service',
-      category: 'maintenance',
-      subCategory: 'Gardening',
-      amount: 3000,
-      date: '2024-10-10',
-      paymentMode: 'UPI',
-      status: 'paid',
-      vendor: 'Green Gardens',
-      billNumber: 'GG-456',
-      description: 'Monthly gardening service',
-      receipt: true,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 8,
-      title: 'Pest Control',
-      category: 'maintenance',
-      subCategory: 'Pest Control',
-      amount: 2500,
-      date: '2024-10-12',
-      paymentMode: 'Cash',
-      status: 'pending',
-      vendor: 'PestKill',
-      billNumber: 'PC-789',
-      description: 'Quarterly pest control service',
-      receipt: false,
-      recurring: false,
-      frequency: null
-    },
-    {
-      id: 9,
-      title: 'Lift/Elevator Maintenance',
-      category: 'maintenance',
-      subCategory: 'Lift',
-      amount: 4500,
-      date: '2024-10-15',
-      paymentMode: 'Bank Transfer',
-      status: 'pending',
-      vendor: 'Otis Elevators',
-      billNumber: 'OT-2024-567',
-      description: 'Annual maintenance contract',
-      receipt: false,
-      recurring: false,
-      frequency: null
-    },
-    {
-      id: 10,
-      title: 'Office Supplies',
-      category: 'miscellaneous',
-      subCategory: 'Stationery',
-      amount: 1200,
-      date: '2024-10-07',
-      paymentMode: 'Cash',
-      status: 'paid',
-      vendor: 'Local Stationery',
-      billNumber: null,
-      description: 'Notebooks, pens, register',
-      receipt: true,
-      recurring: false,
-      frequency: null
-    },
-    {
-      id: 11,
-      title: 'Garbage Collection',
-      category: 'utilities',
-      subCategory: 'Waste',
-      amount: 2000,
-      date: '2024-10-05',
-      paymentMode: 'UPI',
-      status: 'paid',
-      vendor: 'Municipal Corp',
-      billNumber: 'GC-2024-123',
-      description: 'Monthly garbage collection fee',
-      receipt: true,
-      recurring: true,
-      frequency: 'monthly'
-    },
-    {
-      id: 12,
-      title: 'Fire Safety Equipment',
-      category: 'safety',
-      subCategory: 'Fire Safety',
-      amount: 6500,
-      date: '2024-10-09',
-      paymentMode: 'Bank Transfer',
-      status: 'paid',
-      vendor: 'FireSafe India',
-      billNumber: 'FS-890',
-      description: 'Fire extinguisher refill and maintenance',
-      receipt: true,
-      recurring: false,
-      frequency: null
-    },
-    {
-      id: 13,
-      title: 'Water Tank Cleaning',
-      category: 'maintenance',
-      subCategory: 'Cleaning',
-      amount: 4000,
-      date: '2024-10-14',
-      paymentMode: 'Cash',
-      status: 'pending',
-      vendor: 'Clean Water Services',
-      billNumber: 'CWS-345',
-      description: 'Quarterly water tank cleaning',
-      receipt: false,
-      recurring: false,
-      frequency: null
-    }
-  ];
+  // Stats state
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [paidExpenses, setPaidExpenses] = useState(0);
+  const [pendingExpenses, setPendingExpenses] = useState(0);
+  const [paidCount, setPaidCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [categoryTotals, setCategoryTotals] = useState({});
 
-  // Calculate statistics
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const paidExpenses = expenses.filter(e => e.status === 'paid').reduce((sum, e) => sum + e.amount, 0);
-  const pendingExpenses = expenses.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0);
-  const paidCount = expenses.filter(e => e.status === 'paid').length;
-  const pendingCount = expenses.filter(e => e.status === 'pending').length;
-  
-  // Category-wise totals
-  const categoryTotals = {
-    utilities: expenses.filter(e => e.category === 'utilities').reduce((sum, e) => sum + e.amount, 0),
-    staff: expenses.filter(e => e.category === 'staff').reduce((sum, e) => sum + e.amount, 0),
-    maintenance: expenses.filter(e => e.category === 'maintenance').reduce((sum, e) => sum + e.amount, 0),
-    safety: expenses.filter(e => e.category === 'safety').reduce((sum, e) => sum + e.amount, 0),
-    miscellaneous: expenses.filter(e => e.category === 'miscellaneous').reduce((sum, e) => sum + e.amount, 0)
+  // Form state
+  const [formData, setFormData] = useState({
+    branch_id: 1,
+    expense_category_id: '',
+    amount: '',
+    expense_date: new Date().toISOString().split('T')[0],
+    description: '',
+    receipt_url: ''
+  });
+
+  // Fetch expenses from API
+  const fetchExpenses = async () => {
+    setLoading(true);
+    const response = await getExpenses();
+    console.log("Expenses response:", response);
+
+    if (response.success) {
+      const formattedExpenses = response.data.map((expense) => {
+        const category = categories.find(c => c.expense_category_id === expense.expense_category_id);
+        return {
+          id: expense.expense_id,
+          branch_id: expense.branch_id,
+          expense_category_id: expense.expense_category_id,
+          title: expense.description || expense.expense_category_name,
+          category: getCategoryType(expense.expense_category_name),
+          subCategory: expense.expense_category_name,
+          amount: parseFloat(expense.amount),
+          date: expense.expense_date?.split('T')[0],
+          paymentMode: getPaymentMode(expense),
+          status: getStatus(expense),
+          vendor: expense.vendor || '-',
+          billNumber: expense.bill_number || null,
+          description: expense.description,
+          receipt: expense.receipt_url ? true : false,
+          receipt_url: expense.receipt_url,
+          recurring: false,
+          frequency: null,
+          expense_category_name: expense.expense_category_name,
+          created_at: expense.created_at
+        };
+      });
+      
+      setExpenses(formattedExpenses);
+      calculateStats(formattedExpenses);
+    } else {
+      alert(response.message || "Failed to fetch expenses");
+    }
+    setLoading(false);
   };
 
-  // Month-wise trends (last 6 months)
-  const monthlyTrend = [
-    { month: 'May', amount: 48500 },
-    { month: 'Jun', amount: 52300 },
-    { month: 'Jul', amount: 49800 },
-    { month: 'Aug', amount: 51200 },
-    { month: 'Sep', amount: 53600 },
-    { month: 'Oct', amount: 46200 }
-  ];
+  // Fetch categories
+  const fetchCategories = async () => {
+    const response = await getExpenseCategories();
+    if (response.success) {
+      setCategories(response.data);
+    }
+  };
+
+  // Calculate statistics
+  const calculateStats = (expensesList) => {
+    const total = expensesList.reduce((sum, e) => sum + e.amount, 0);
+    const paid = expensesList.filter(e => e.status === 'paid').reduce((sum, e) => sum + e.amount, 0);
+    const pending = expensesList.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0);
+    const paidCnt = expensesList.filter(e => e.status === 'paid').length;
+    const pendingCnt = expensesList.filter(e => e.status === 'pending').length;
+    
+    setTotalExpenses(total);
+    setPaidExpenses(paid);
+    setPendingExpenses(pending);
+    setPaidCount(paidCnt);
+    setPendingCount(pendingCnt);
+
+    // Calculate category totals
+    const categoryTotalsMap = {};
+    expensesList.forEach(expense => {
+      const cat = expense.category;
+      if (!categoryTotalsMap[cat]) categoryTotalsMap[cat] = 0;
+      categoryTotalsMap[cat] += expense.amount;
+    });
+    setCategoryTotals(categoryTotalsMap);
+  };
+
+  // Helper functions
+  const getCategoryType = (categoryName) => {
+    const name = categoryName?.toLowerCase() || '';
+    if (name.includes('electricity') || name.includes('water') || name.includes('internet') || name.includes('utilities')) return 'utilities';
+    if (name.includes('salary') || name.includes('staff')) return 'staff';
+    if (name.includes('cleaning') || name.includes('repair') || name.includes('maintenance')) return 'maintenance';
+    if(name.includes('safety') || name.includes('security')) return 'safety';
+    return 'miscellaneous';
+  };
+
+  const getPaymentMode = (expense) => {
+    // Default to Cash if not specified
+    return 'Cash';
+  };
+
+  const getStatus = (expense) => {
+    // Default to paid if status is active or null
+    return expense.deleted_at ? 'pending' : 'paid';
+  };
+
+  // Create expense
+  const handleCreateExpense = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const expenseData = {
+      branch_id: parseInt(formData.branch_id),
+      expense_category_id: parseInt(formData.expense_category_id),
+      amount: parseFloat(formData.amount),
+      expense_date: formData.expense_date,
+      description: formData.description,
+      receipt_url: formData.receipt_url || null
+    };
+    
+    const response = await createExpense(expenseData);
+    
+    if (response.success) {
+      alert("Expense added successfully!");
+      setShowAddModal(false);
+      resetForm();
+      fetchExpenses();
+    } else {
+      alert(response.message || "Failed to add expense");
+    }
+    setLoading(false);
+  };
+
+  // Create category
+  const handleCreateCategory = async () => {
+    if (!newCategory.trim()) {
+      alert("Please enter category name");
+      return;
+    }
+    
+    setLoading(true);
+    const response = await createExpenseCategory({ name: newCategory });
+    
+    if (response.success) {
+      alert("Category added successfully!");
+      setShowCategoryModal(false);
+      setNewCategory('');
+      fetchCategories();
+    } else {
+      alert(response.message || "Failed to add category");
+    }
+    setLoading(false);
+  };
+
+  // Delete expense
+  const handleDeleteExpense = async (expenseId) => {
+    if (window.confirm("Are you sure you want to delete this expense?")) {
+      setLoading(true);
+      const response = await deleteExpense(expenseId);
+      
+      if (response.success) {
+        alert("Expense deleted successfully!");
+        fetchExpenses();
+      } else {
+        alert(response.message || "Failed to delete expense");
+      }
+      setLoading(false);
+    }
+  };
+
+  // Form handling
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      branch_id: 1,
+      expense_category_id: '',
+      amount: '',
+      expense_date: new Date().toISOString().split('T')[0],
+      description: '',
+      receipt_url: ''
+    });
+  };
+
+  const openDetailsModal = (expense) => {
+    setSelectedExpense(expense);
+    setShowDetailsModal(true);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      fetchExpenses();
+    }
+  }, [categories]);
+
+  // Filter expenses
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = 
+      expense.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedExpenses = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
+
+  // Monthly trend (last 6 months)
+  const getMonthlyTrend = () => {
+    const months = {};
+    expenses.forEach(expense => {
+      const month = new Date(expense.date).toLocaleString('default', { month: 'short' });
+      if (!months[month]) months[month] = 0;
+      months[month] += expense.amount;
+    });
+    return Object.entries(months).slice(-6).map(([month, amount]) => ({ month, amount }));
+  };
+
+  const monthlyTrend = getMonthlyTrend();
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   // Category icons
   const getCategoryIcon = (category) => {
@@ -314,7 +337,7 @@ const Expenses = () => {
       case 'miscellaneous':
         return 'Miscellaneous';
       default:
-        return category;
+        return category || 'Other';
     }
   };
 
@@ -344,266 +367,16 @@ const Expenses = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
-  // Filter expenses
-  const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          expense.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedExpenses = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
-
-  // Add Expense Modal
-  const AddExpenseModal = ({ onClose }) => {
-    const [formData, setFormData] = useState({
-      title: '',
-      category: 'utilities',
-      subCategory: '',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-      paymentMode: 'Cash',
-      vendor: '',
-      billNumber: '',
-      description: ''
-    });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      // Here you would typically make an API call
-      alert('Expense added successfully!');
-      onClose();
-    };
-
+  if (loading && expenses.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-          <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Add New Expense</h2>
-              <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">✕</button>
-            </div>
-          </div>
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Expense Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Monthly Electricity Bill"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Category *</label>
-                <select
-                  required
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="utilities">Utilities</option>
-                  <option value="staff">Staff</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="safety">Safety</option>
-                  <option value="miscellaneous">Miscellaneous</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Sub Category</label>
-                <input
-                  type="text"
-                  value={formData.subCategory}
-                  onChange={(e) => setFormData({...formData, subCategory: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Electricity, Water"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Amount *</label>
-                <input
-                  type="number"
-                  required
-                  value={formData.amount}
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Payment Mode</label>
-                <select
-                  value={formData.paymentMode}
-                  onChange={(e) => setFormData({...formData, paymentMode: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option>Cash</option>
-                  <option>Bank Transfer</option>
-                  <option>UPI</option>
-                  <option>Cheque</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Vendor/Provider</label>
-                <input
-                  type="text"
-                  value={formData.vendor}
-                  onChange={(e) => setFormData({...formData, vendor: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Vendor name"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Bill/Invoice Number</label>
-                <input
-                  type="text"
-                  value={formData.billNumber}
-                  onChange={(e) => setFormData({...formData, billNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
-                <textarea
-                  rows="3"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Additional details..."
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Expense</button>
-            </div>
-          </form>
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading expenses...</p>
         </div>
       </div>
     );
-  };
-
-  // Expense Details Modal
-  const ExpenseDetailsModal = ({ expense, onClose }) => {
-    if (!expense) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={e => e.stopPropagation()}>
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Expense Details</h2>
-              <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">✕</button>
-            </div>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="text-xs text-gray-500">Amount</p>
-                <p className="text-2xl font-bold text-gray-800">{formatCurrency(expense.amount)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Date</p>
-                <p className="font-medium text-gray-700">{formatDate(expense.date)}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-xs text-gray-500">Expense Title</label>
-                <p className="font-medium text-gray-800">{expense.title}</p>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Category</label>
-                <div className="flex items-center gap-1 mt-1">
-                  {getCategoryIcon(expense.category)}
-                  <span>{getCategoryName(expense.category)}</span>
-                </div>
-              </div>
-              {expense.subCategory && (
-                <div>
-                  <label className="text-xs text-gray-500">Sub Category</label>
-                  <p className="text-gray-700">{expense.subCategory}</p>
-                </div>
-              )}
-              <div>
-                <label className="text-xs text-gray-500">Status</label>
-                <div className="mt-1">{getStatusBadge(expense.status)}</div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Payment Mode</label>
-                <div className="flex items-center gap-1 mt-1">
-                  {getPaymentModeIcon(expense.paymentMode)}
-                  <span>{expense.paymentMode}</span>
-                </div>
-              </div>
-              {expense.vendor && (
-                <div>
-                  <label className="text-xs text-gray-500">Vendor</label>
-                  <p className="text-gray-700">{expense.vendor}</p>
-                </div>
-              )}
-              {expense.billNumber && (
-                <div>
-                  <label className="text-xs text-gray-500">Bill Number</label>
-                  <p className="text-gray-700 text-sm">{expense.billNumber}</p>
-                </div>
-              )}
-              {expense.recurring && (
-                <div>
-                  <label className="text-xs text-gray-500">Recurring</label>
-                  <p className="text-gray-700 capitalize">{expense.frequency}</p>
-                </div>
-              )}
-            </div>
-            <div className="border-t pt-4">
-              <label className="text-xs text-gray-500">Description</label>
-              <p className="text-gray-700 bg-gray-50 p-3 rounded-lg mt-1">{expense.description}</p>
-            </div>
-            {expense.receipt && (
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <label className="text-xs text-blue-600">Receipt Available</label>
-                <p className="text-blue-800 text-sm">Receipt/Invoice uploaded</p>
-              </div>
-            )}
-          </div>
-          <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">
-              <Edit className="w-4 h-4" />
-              Edit
-            </button>
-            <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Close</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -613,13 +386,22 @@ const Expenses = () => {
           <h1 className="text-2xl font-bold text-gray-800">Expenses</h1>
           <p className="text-gray-500 mt-1">Track and manage all property expenses</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCategoryModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Category
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -661,7 +443,7 @@ const Expenses = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500">This Month</p>
-              <p className="text-xl font-bold text-purple-600">{formatCurrency(monthlyTrend[monthlyTrend.length-1].amount)}</p>
+              <p className="text-xl font-bold text-purple-600">{monthlyTrend.length > 0 ? formatCurrency(monthlyTrend[monthlyTrend.length-1]?.amount) : formatCurrency(0)}</p>
             </div>
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
               <Calendar className="w-5 h-5 text-purple-600" />
@@ -696,27 +478,29 @@ const Expenses = () => {
       </div>
 
       {/* Monthly Trend Bar Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4" />
-          Monthly Expense Trend
-        </h3>
-        <div className="flex items-end gap-3 h-32">
-          {monthlyTrend.map((item, index) => {
-            const maxAmount = Math.max(...monthlyTrend.map(m => m.amount));
-            const height = (item.amount / maxAmount) * 100;
-            return (
-              <div key={index} className="flex-1 text-center">
-                <div className="bg-blue-100 rounded-t-lg transition-all duration-300" style={{ height: `${height}px`, minHeight: '4px' }}>
-                  <div className="bg-blue-500 h-full rounded-t-lg" style={{ height: `${height}%` }}></div>
+      {monthlyTrend.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Monthly Expense Trend
+          </h3>
+          <div className="flex items-end gap-3 h-32">
+            {monthlyTrend.map((item, index) => {
+              const maxAmount = Math.max(...monthlyTrend.map(m => m.amount), 1);
+              const height = (item.amount / maxAmount) * 100;
+              return (
+                <div key={index} className="flex-1 text-center">
+                  <div className="bg-blue-100 rounded-t-lg" style={{ height: `${height}px`, minHeight: '4px' }}>
+                    <div className="bg-blue-500 h-full rounded-t-lg" style={{ height: `${height}%` }}></div>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">{item.month}</p>
+                  <p className="text-xs font-semibold text-gray-800">{formatCurrency(item.amount)}</p>
                 </div>
-                <p className="text-xs text-gray-600 mt-2">{item.month}</p>
-                <p className="text-xs font-semibold text-gray-800">{formatCurrency(item.amount)}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
@@ -755,19 +539,9 @@ const Expenses = () => {
             </select>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}`}
-            >
-              <FileText className="w-4 h-4" />
-            </button>
             <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
               <Download className="w-4 h-4" />
               Export
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
-              <Printer className="w-4 h-4" />
-              Print
             </button>
           </div>
         </div>
@@ -783,9 +557,7 @@ const Expenses = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Mode</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -793,7 +565,7 @@ const Expenses = () => {
               {paginatedExpenses.map((expense) => (
                 <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-800 text-sm">{expense.title}</p>
+                    <p className="font-medium text-gray-800 text-sm">{expense.subCategory}</p>
                     {expense.description && (
                       <p className="text-xs text-gray-400 truncate max-w-[200px]">{expense.description}</p>
                     )}
@@ -809,31 +581,25 @@ const Expenses = () => {
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-800">{formatCurrency(expense.amount)}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{formatDate(expense.date)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {getPaymentModeIcon(expense.paymentMode)}
-                      <span className="text-sm text-gray-700">{expense.paymentMode}</span>
-                    </div>
-                   </td>
                   <td className="px-4 py-3">{getStatusBadge(expense.status)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{expense.vendor || '—'}</td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => setSelectedExpense(expense)}
+                        onClick={() => openDetailsModal(expense)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="View Details"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleDeleteExpense(expense.id)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                   </td>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -841,7 +607,7 @@ const Expenses = () => {
         </div>
 
         {/* Empty State */}
-        {paginatedExpenses.length === 0 && (
+        {paginatedExpenses.length === 0 && !loading && (
           <div className="text-center py-12">
             <Receipt className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No expenses found</p>
@@ -863,19 +629,31 @@ const Expenses = () => {
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <div className="flex gap-1">
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                      currentPage === i + 1
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
               </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
@@ -889,9 +667,217 @@ const Expenses = () => {
         )}
       </div>
 
-      {/* Modals */}
-      {showAddModal && <AddExpenseModal onClose={() => setShowAddModal(false)} />}
-      {selectedExpense && <ExpenseDetailsModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} />}
+      {/* Add Expense Modal */}
+      {showAddModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => {setShowAddModal(false); resetForm();}}></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Add New Expense</h2>
+              <button onClick={() => {setShowAddModal(false); resetForm();}} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateExpense} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Branch ID *</label>
+                <input
+                  type="number"
+                  name="branch_id"
+                  value={formData.branch_id}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expense Category *</label>
+                <select
+                  name="expense_category_id"
+                  value={formData.expense_category_id}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Category</option>
+                  {categories.map(cat => (
+                    <option key={cat.expense_category_id} value={cat.expense_category_id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) *</label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={formData.amount}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expense Date *</label>
+                <input
+                  type="date"
+                  name="expense_date"
+                  value={formData.expense_date}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows="3"
+                  placeholder="Additional details..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Receipt URL (Optional)</label>
+                <input
+                  type="text"
+                  name="receipt_url"
+                  value={formData.receipt_url}
+                  onChange={handleInputChange}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Adding..." : "Add Expense"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {setShowAddModal(false); resetForm();}}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Add Category Modal */}
+      {showCategoryModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => {setShowCategoryModal(false); setNewCategory('');}}></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Add Expense Category</h2>
+              <button onClick={() => {setShowCategoryModal(false); setNewCategory('');}} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="e.g., Electricity, Water Bill, Staff Salary"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateCategory}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Adding..." : "Add Category"}
+                </button>
+                <button
+                  onClick={() => {setShowCategoryModal(false); setNewCategory('');}}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Expense Details Modal */}
+      {showDetailsModal && selectedExpense && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowDetailsModal(false)}></div>
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Expense Details</h2>
+              <button onClick={() => setShowDetailsModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500">Amount</p>
+                  <p className="text-2xl font-bold text-gray-800">{formatCurrency(selectedExpense.amount)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p className="font-medium text-gray-700">{formatDate(selectedExpense.date)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-500">Category</label>
+                  <div className="flex items-center gap-1 mt-1">
+                    {getCategoryIcon(selectedExpense.category)}
+                    <span>{getCategoryName(selectedExpense.category)}</span>
+                    <span className="text-gray-400">({selectedExpense.subCategory})</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Status</label>
+                  <div className="mt-1">{getStatusBadge(selectedExpense.status)}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Transaction ID</label>
+                  <p className="text-sm text-gray-700">#{selectedExpense.id}</p>
+                </div>
+              </div>
+              {selectedExpense.description && (
+                <div>
+                  <label className="text-xs text-gray-500">Description</label>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg mt-1">{selectedExpense.description}</p>
+                </div>
+              )}
+              {selectedExpense.receipt_url && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <label className="text-xs text-blue-600">Receipt</label>
+                  <a href={selectedExpense.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-800 text-sm block mt-1 break-all">
+                    View Receipt
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 pt-6 mt-4 border-t">
+              <button onClick={() => setShowDetailsModal(false)} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

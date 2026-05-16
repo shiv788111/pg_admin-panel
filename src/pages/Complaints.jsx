@@ -1,255 +1,189 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
-  Plus,
   Filter,
-  MoreVertical,
-  Edit,
-  Trash2,
   Eye,
+  Trash2,
   AlertCircle,
   CheckCircle,
   Clock,
-  XCircle,
-  MessageSquare,
-  User,
+  Wrench,
   Home,
   Calendar,
   Flag,
-  Wrench,
-  Zap,
   Droplet,
-  Thermometer,
+  Zap,
   Bug,
-  Lock,
   Volume2,
-  Download,
-  Send,
-  Phone,
-  Mail,
-  Star,
-  ThumbsUp,
-  ThumbsDown,
   Wifi,
+  X,
 } from "lucide-react";
+import {
+  getComplaints,
+  resolveComplaint,
+  deleteComplaint,
+} from "../services/complaints";
 
 function Complaints() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterPriority, setFilterPriority] = useState("all");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const complaints = [
-    {
-      id: 1,
-      tenant: "Rahul Sharma",
-      room: "A-101",
-      category: "Plumbing",
-      title: "Water leakage in bathroom",
-      description:
-        "Water is leaking from the bathroom pipe since morning. Please fix urgently.",
-      priority: "high",
-      status: "pending",
-      date: "2024-01-15",
-      time: "09:30 AM",
-      assignedTo: "Maintenance Team",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "R",
-      color: "bg-blue-500",
-    },
-    {
-      id: 2,
-      tenant: "Priya Patel",
-      room: "B-202",
-      category: "Electrical",
-      title: "AC not working",
-      description: "AC is not cooling properly. Making strange noise.",
-      priority: "high",
-      status: "in-progress",
-      date: "2024-01-14",
-      time: "02:15 PM",
-      assignedTo: "Electrician",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "P",
-      color: "bg-pink-500",
-    },
-    {
-      id: 3,
-      tenant: "Amit Kumar",
-      room: "C-303",
-      category: "Furniture",
-      title: "Broken chair",
-      description: "Chair in the room is broken. Need replacement.",
-      priority: "medium",
-      status: "resolved",
-      date: "2024-01-13",
-      time: "11:00 AM",
-      assignedTo: "Furniture Team",
-      resolvedDate: "2024-01-14",
-      feedback: "Good service, resolved quickly",
-      rating: 5,
-      images: [],
-      avatar: "A",
-      color: "bg-green-500",
-    },
-    {
-      id: 4,
-      tenant: "Neha Singh",
-      room: "A-104",
-      category: "Plumbing",
-      title: "No hot water",
-      description: "Geyser is not working. No hot water since yesterday.",
-      priority: "medium",
-      status: "pending",
-      date: "2024-01-14",
-      time: "08:00 AM",
-      assignedTo: "Plumber",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "N",
-      color: "bg-yellow-500",
-    },
-    {
-      id: 5,
-      tenant: "Vikram Mehta",
-      room: "B-205",
-      category: "Electrical",
-      title: "Light bulb fused",
-      description: "Bedroom light bulb is fused. Need replacement.",
-      priority: "low",
-      status: "resolved",
-      date: "2024-01-12",
-      time: "06:30 PM",
-      assignedTo: "Electrician",
-      resolvedDate: "2024-01-13",
-      feedback: "Quick response, very satisfied",
-      rating: 4,
-      images: [],
-      avatar: "V",
-      color: "bg-purple-500",
-    },
-    {
-      id: 6,
-      tenant: "Anjali Desai",
-      room: "D-101",
-      category: "Pest Control",
-      title: "Mosquito problem",
-      description: "Too many mosquitoes in the room. Need pest control.",
-      priority: "high",
-      status: "in-progress",
-      date: "2024-01-14",
-      time: "10:00 AM",
-      assignedTo: "Pest Control",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "A",
-      color: "bg-red-500",
-    },
-    {
-      id: 7,
-      tenant: "Suresh Kumar",
-      room: "C-106",
-      category: "Noise",
-      title: "Loud music from next room",
-      description: "Neighbor playing loud music late at night.",
-      priority: "medium",
-      status: "pending",
-      date: "2024-01-15",
-      time: "11:30 PM",
-      assignedTo: "Security",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "S",
-      color: "bg-indigo-500",
-    },
-    {
-      id: 8,
-      tenant: "Meera Joshi",
-      room: "A-205",
-      category: "Internet",
-      title: "WiFi not working",
-      description:
-        "Internet connection is very slow and disconnecting frequently.",
-      priority: "high",
-      status: "in-progress",
-      date: "2024-01-15",
-      time: "09:00 AM",
-      assignedTo: "IT Support",
-      resolvedDate: null,
-      feedback: null,
-      rating: null,
-      images: [],
-      avatar: "M",
-      color: "bg-teal-500",
-    },
-  ];
+  // Stats state
+  const [totalComplaints, setTotalComplaints] = useState(0);
+  const [pendingComplaints, setPendingComplaints] = useState(0);
+  const [resolvedComplaints, setResolvedComplaints] = useState(0);
 
-  const categories = [
-    { name: "Plumbing", count: 2, icon: Droplet, color: "blue" },
-    { name: "Electrical", count: 2, icon: Zap, color: "yellow" },
-    { name: "Furniture", count: 1, icon: Home, color: "green" },
-    { name: "Pest Control", count: 1, icon: Bug, color: "orange" },
-    { name: "Noise", count: 1, icon: Volume2, color: "purple" },
-    { name: "Internet", count: 1, icon: Wifi, color: "indigo" },
-  ];
+  // Fetch complaints from API
+  const fetchComplaints = async () => {
+    setLoading(true);
+    const response = await getComplaints();
+    console.log("Complaints response:", response);
 
-  const stats = [
-    {
-      title: "Total Complaints",
-      value: "8",
-      change: "+2",
-      icon: AlertCircle,
-      color: "from-blue-500 to-blue-600",
-    },
-    {
-      title: "Pending",
-      value: "3",
-      change: "0",
-      icon: Clock,
-      color: "from-yellow-500 to-yellow-600",
-    },
-    {
-      title: "In Progress",
-      value: "3",
-      change: "+1",
-      icon: Wrench,
-      color: "from-orange-500 to-orange-600",
-    },
-    {
-      title: "Resolved",
-      value: "2",
-      change: "+2",
-      icon: CheckCircle,
-      color: "from-green-500 to-green-600",
-    },
-  ];
+    if (response.success) {
+      const formattedComplaints = response.data.map((complaint) => ({
+        id: complaint.complaint_id,
+        tenant_id: complaint.tenant_id,
+        tenant: complaint.tenant_name,
+        room_no: complaint.room_no,
+        branch_name: complaint.branch_name,
+        title: complaint.title,
+        description: complaint.description,
+        category:
+          complaint.category?.charAt(0).toUpperCase() +
+            complaint.category?.slice(1) || "Maintenance",
+        status: complaint.status,
+        date: complaint.created_at?.split("T")[0],
+        time: complaint.created_at?.split("T")[1]?.slice(0, 5),
+        resolvedDate: complaint.updated_at?.split("T")[0] || null,
+        color: getColorForCategory(complaint.category),
+      }));
 
+      setComplaints(formattedComplaints);
+
+      // Update stats
+      const total = formattedComplaints.length;
+      const pending = formattedComplaints.filter(
+        (c) => c.status === "pending",
+      ).length;
+      const resolved = formattedComplaints.filter(
+        (c) => c.status === "resolved",
+      ).length;
+
+      setTotalComplaints(total);
+      setPendingComplaints(pending);
+      setResolvedComplaints(resolved);
+    } else {
+      alert(response.message || "Failed to fetch complaints");
+    }
+    setLoading(false);
+  };
+
+  const getColorForCategory = (category) => {
+    const colors = {
+      maintenance: "bg-blue-500",
+      plumbing: "bg-cyan-500",
+      electrical: "bg-yellow-500",
+      furniture: "bg-green-500",
+      "pest control": "bg-orange-500",
+      noise: "bg-purple-500",
+      internet: "bg-indigo-500",
+    };
+    return colors[category?.toLowerCase()] || "bg-gray-500";
+  };
+
+  const getCategoryIcon = (category) => {
+    switch (category?.toLowerCase()) {
+      case "plumbing":
+        return <Droplet className="w-4 h-4" />;
+      case "electrical":
+        return <Zap className="w-4 h-4" />;
+      case "furniture":
+        return <Home className="w-4 h-4" />;
+      case "pest control":
+        return <Bug className="w-4 h-4" />;
+      case "noise":
+        return <Volume2 className="w-4 h-4" />;
+      case "internet":
+        return <Wifi className="w-4 h-4" />;
+      default:
+        return <Wrench className="w-4 h-4" />;
+    }
+  };
+
+  // Resolve complaint
+  const handleResolveComplaint = async () => {
+    if (!selectedComplaint) return;
+
+    setLoading(true);
+    const response = await resolveComplaint(selectedComplaint.id);
+
+    if (response.success) {
+      alert("Complaint resolved successfully!");
+      setShowResolveModal(false);
+      setShowDetailsModal(false);
+      fetchComplaints();
+    } else {
+      alert(response.message || "Failed to resolve complaint");
+    }
+    setLoading(false);
+  };
+
+  // Delete complaint
+  const handleDeleteComplaint = async (complaintId) => {
+    if (window.confirm("Are you sure you want to delete this complaint?")) {
+      setLoading(true);
+      const response = await deleteComplaint(complaintId);
+
+      if (response.success) {
+        alert("Complaint deleted successfully!");
+        fetchComplaints();
+      } else {
+        alert(response.message || "Failed to delete complaint");
+      }
+      setLoading(false);
+    }
+  };
+
+  const openDetailsModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setShowDetailsModal(true);
+  };
+
+  const openResolveModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setShowResolveModal(true);
+  };
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  // Filter complaints
   const filteredComplaints = complaints.filter((complaint) => {
     const matchesSearch =
-      complaint.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.room.toLowerCase().includes(searchTerm.toLowerCase()) ||
       complaint.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.category.toLowerCase().includes(searchTerm.toLowerCase());
+      complaint.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      complaint.tenant.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      complaint.room_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      complaint.branch_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" || complaint.status === filterStatus;
-    const matchesPriority =
-      filterPriority === "all" || complaint.priority === filterPriority;
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus;
   });
+
+  // Pagination
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(filteredComplaints.length / itemsPerPage);
+  const paginatedComplaints = filteredComplaints.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -257,12 +191,6 @@ function Complaints() {
         return (
           <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-medium flex items-center gap-1">
             <Clock className="w-3 h-3" /> Pending
-          </span>
-        );
-      case "in-progress":
-        return (
-          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1">
-            <Wrench className="w-3 h-3" /> In Progress
           </span>
         );
       case "resolved":
@@ -280,58 +208,35 @@ function Complaints() {
     }
   };
 
-  const getPriorityBadge = (priority) => {
-    switch (priority) {
-      case "high":
-        return (
-          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1">
-            <Flag className="w-3 h-3" /> High
-          </span>
-        );
-      case "medium":
-        return (
-          <span className="px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-700 font-medium flex items-center gap-1">
-            <Flag className="w-3 h-3" /> Medium
-          </span>
-        );
-      case "low":
-        return (
-          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1">
-            <Flag className="w-3 h-3" /> Low
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 font-medium">
-            {priority}
-          </span>
-        );
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case "Plumbing":
-        return <Droplet className="w-4 h-4" />;
-      case "Electrical":
-        return <Zap className="w-4 h-4" />;
-      case "Furniture":
-        return <Home className="w-4 h-4" />;
-      case "Pest Control":
-        return <Bug className="w-4 h-4" />;
-      case "Noise":
-        return <Volume2 className="w-4 h-4" />;
-      case "Internet":
-        return <Wifi className="w-4 h-4" />;
-      default:
-        return <AlertCircle className="w-4 h-4" />;
-    }
+  const formatTime = (timeString) => {
+    if (!timeString) return "N/A";
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${minutes} ${ampm}`;
   };
 
-  const handleViewDetails = (complaint) => {
-    setSelectedComplaint(complaint);
-    setShowDetailsModal(true);
-  };
+  if (loading && complaints.length === 0) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading complaints...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -343,89 +248,58 @@ function Complaints() {
               Complaints Management
             </h1>
             <p className="text-gray-500 mt-1">
-              Track and manage all tenant complaints and maintenance requests
+              View and manage all tenant complaints
             </p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New Complaint
-            </button>
-            <button className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-white transition-all flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition-all group"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`bg-gradient-to-r ${stat.color} p-3 rounded-xl text-white group-hover:scale-110 transition-transform`}
-                >
-                  <Icon className="w-6 h-6" />
-                </div>
-                <span
-                  className={`text-sm font-medium ${stat.change.includes("+") ? "text-green-600" : "text-red-600"}`}
-                >
-                  {stat.change}
-                </span>
-              </div>
-              <h3 className="text-gray-500 text-sm font-medium">
-                {stat.title}
-              </h3>
-              <p className="text-2xl font-bold text-gray-800 mt-1">
-                {stat.value}
-              </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Total Complaints Card */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-xl text-white group-hover:scale-110 transition-transform">
+              <AlertCircle className="w-6 h-6" />
             </div>
-          );
-        })}
-      </div>
+          </div>
+          <h3 className="text-gray-500 text-sm font-medium">
+            Total Complaints
+          </h3>
+          <p className="text-2xl font-bold text-gray-800 mt-1">
+            {totalComplaints}
+          </p>
+        </div>
 
-      {/* Categories Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        {categories.map((category, index) => {
-          const Icon = category.icon;
-          const bgColor = {
-            blue: "from-blue-500 to-blue-600",
-            yellow: "from-yellow-500 to-yellow-600",
-            green: "from-green-500 to-green-600",
-            orange: "from-orange-500 to-orange-600",
-            purple: "from-purple-500 to-purple-600",
-            indigo: "from-indigo-500 to-indigo-600",
-          }[category.color];
-
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-xl shadow-sm p-3 hover:shadow-md transition-all cursor-pointer text-center"
-            >
-              <div
-                className={`bg-gradient-to-r ${bgColor} w-10 h-10 rounded-lg flex items-center justify-center text-white mx-auto mb-2`}
-              >
-                <Icon className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-medium text-gray-800">
-                {category.name}
-              </p>
-              <p className="text-lg font-bold text-gray-600">
-                {category.count}
-              </p>
+        {/* Pending Complaints Card */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-3 rounded-xl text-white group-hover:scale-110 transition-transform">
+              <Clock className="w-6 h-6" />
             </div>
-          );
-        })}
+          </div>
+          <h3 className="text-gray-500 text-sm font-medium">
+            Pending Complaints
+          </h3>
+          <p className="text-2xl font-bold text-gray-800 mt-1">
+            {pendingComplaints}
+          </p>
+        </div>
+
+        {/* Resolved Complaints Card */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-3 rounded-xl text-white group-hover:scale-110 transition-transform">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+          </div>
+          <h3 className="text-gray-500 text-sm font-medium">
+            Resolved Complaints
+          </h3>
+          <p className="text-2xl font-bold text-gray-800 mt-1">
+            {resolvedComplaints}
+          </p>
+        </div>
       </div>
 
       {/* Search and Filter Bar */}
@@ -435,7 +309,7 @@ function Complaints() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by tenant name, room number, or complaint title..."
+              placeholder="Search by tenant name, room, branch, title or category..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -449,167 +323,218 @@ function Complaints() {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="in-progress">In Progress</option>
               <option value="resolved">Resolved</option>
             </select>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Priority</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <button className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filter
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Complaints Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredComplaints.map((complaint) => (
-          <div
-            key={complaint.id}
-            className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
-          >
-            <div
-              className={`h-1 bg-gradient-to-r ${
-                complaint.priority === "high"
-                  ? "from-red-500 to-red-600"
-                  : complaint.priority === "medium"
-                    ? "from-orange-500 to-orange-600"
-                    : "from-green-500 to-green-600"
-              }`}
-            ></div>
-
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`${complaint.color} w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm`}
-                  >
-                    {complaint.avatar}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800">
-                      {complaint.tenant}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Home className="w-3 h-3" />
-                      <span>Room {complaint.room}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  {getPriorityBadge(complaint.priority)}
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center gap-2">
-                  {getCategoryIcon(complaint.category)}
-                  <span className="text-xs font-medium text-gray-600">
-                    {complaint.category}
-                  </span>
-                </div>
-
-                <h4 className="font-semibold text-gray-800 text-base">
-                  {complaint.title}
-                </h4>
-                <p className="text-sm text-gray-600 line-clamp-2">
-                  {complaint.description}
-                </p>
-
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{complaint.date}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{complaint.time}</span>
-                  </div>
-                </div>
-
-                {complaint.assignedTo && (
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                    <User className="w-3 h-3" />
-                    <span>Assigned to: {complaint.assignedTo}</span>
-                  </div>
-                )}
-
-                {complaint.resolvedDate && (
-                  <div className="flex items-center gap-1 text-xs text-green-600">
-                    <CheckCircle className="w-3 h-3" />
-                    <span>Resolved on: {complaint.resolvedDate}</span>
-                  </div>
-                )}
-
-                {complaint.feedback && (
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <div className="flex items-center gap-1 mb-1">
-                      <MessageSquare className="w-3 h-3 text-gray-400" />
-                      <span className="text-xs text-gray-500">Feedback:</span>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      {complaint.feedback}
-                    </p>
-                    {complaint.rating && (
-                      <div className="flex items-center gap-1 mt-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${i < complaint.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
-                          />
-                        ))}
+      {/* Complaints Table */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tenant Name
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Room & Branch
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Complaint
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {paginatedComplaints.map((complaint) => (
+                <tr
+                  key={complaint.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-medium text-gray-900">
+                      #{complaint.id}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`${complaint.color} w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md`}
+                      >
+                        {complaint.tenant?.charAt(0)?.toUpperCase() || "T"}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      <span className="text-sm font-semibold text-gray-800">
+                        {complaint.tenant}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <p className="text-sm text-gray-700 flex items-center gap-1">
+                        <Home className="w-3 h-3 text-gray-400" />
+                        Room {complaint.room_no}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {complaint.branch_name}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {complaint.title}
+                      </p>
+                      <p className="text-xs text-gray-500 line-clamp-1 max-w-xs">
+                        {complaint.description}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`${complaint.color} w-6 h-6 rounded-full flex items-center justify-center text-white`}
+                      >
+                        {getCategoryIcon(complaint.category)}
+                      </div>
+                      <span className="text-sm text-gray-700">
+                        {complaint.category}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        {formatDate(complaint.date)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {formatTime(complaint.time)}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(complaint.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openDetailsModal(complaint)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {complaint.status !== "resolved" && (
+                        <button
+                          onClick={() => openResolveModal(complaint)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Mark as Resolved"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteComplaint(complaint.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div>{getStatusBadge(complaint.status)}</div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleViewDetails(complaint)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+        {/* Pagination */}
+        {filteredComplaints.length > 0 && totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="text-sm text-gray-500">
+                Showing {paginatedComplaints.length} of{" "}
+                {filteredComplaints.length} complaints
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                        currentPage === pageNum
+                          ? "bg-indigo-600 text-white"
+                          : "border border-gray-200 hover:bg-white"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
             </div>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Empty State */}
-      {filteredComplaints.length === 0 && (
-        <div className="text-center py-12">
+      {filteredComplaints.length === 0 && !loading && (
+        <div className="bg-white rounded-2xl shadow-sm text-center py-12">
           <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-12 h-12 text-gray-400" />
+            <AlertCircle className="w-12 h-12 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-800 mb-2">
             No complaints found
           </h3>
           <p className="text-gray-500 mb-4">
-            Try adjusting your search or filter criteria
+            {searchTerm || filterStatus !== "all"
+              ? "Try adjusting your search or filter criteria"
+              : "No complaints have been submitted yet"}
           </p>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-            New Complaint
-          </button>
         </div>
       )}
 
@@ -627,118 +552,118 @@ function Complaints() {
               </h2>
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <XCircle className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b">
                 <div
-                  className={`${selectedComplaint.color} w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg`}
+                  className={`${selectedComplaint.color} w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md`}
                 >
-                  {selectedComplaint.avatar}
+                  {selectedComplaint.tenant?.charAt(0)?.toUpperCase() || "T"}
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-800 text-lg">
                     {selectedComplaint.tenant}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Room {selectedComplaint.room}
+                    Complaint #{selectedComplaint.id}
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500">Category</label>
-                  <div className="flex items-center gap-1 mt-1">
-                    {getCategoryIcon(selectedComplaint.category)}
+                  <label className="text-xs text-gray-500 uppercase tracking-wider">
+                    Category
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div
+                      className={`${selectedComplaint.color} w-7 h-7 rounded-lg flex items-center justify-center text-white`}
+                    >
+                      {getCategoryIcon(selectedComplaint.category)}
+                    </div>
                     <span className="text-sm font-medium text-gray-700">
                       {selectedComplaint.category}
                     </span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Priority</label>
-                  <div className="mt-1">
-                    {getPriorityBadge(selectedComplaint.priority)}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Status</label>
+                  <label className="text-xs text-gray-500 uppercase tracking-wider">
+                    Status
+                  </label>
                   <div className="mt-1">
                     {getStatusBadge(selectedComplaint.status)}
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Date & Time</label>
+                  <label className="text-xs text-gray-500 uppercase tracking-wider">
+                    Room & Branch
+                  </label>
                   <p className="text-sm text-gray-700 mt-1">
-                    {selectedComplaint.date} at {selectedComplaint.time}
+                    Room {selectedComplaint.room_no} • {selectedComplaint.branch_name}
                   </p>
                 </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-wider">
+                    Date & Time
+                  </label>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {formatDate(selectedComplaint.date)} at{" "}
+                    {formatTime(selectedComplaint.time)}
+                  </p>
+                </div>
+                {selectedComplaint.resolvedDate && (
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500 uppercase tracking-wider">
+                      Resolved Date
+                    </label>
+                    <p className="text-sm text-green-700 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      {formatDate(selectedComplaint.resolvedDate)}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="text-xs text-gray-500">Title</label>
-                <p className="text-sm font-medium text-gray-800 mt-1">
+                <label className="text-xs text-gray-500 uppercase tracking-wider">
+                  Title
+                </label>
+                <p className="text-sm font-medium text-gray-800 mt-1 bg-gray-50 p-2 rounded-lg">
                   {selectedComplaint.title}
                 </p>
               </div>
 
               <div>
-                <label className="text-xs text-gray-500">Description</label>
-                <p className="text-sm text-gray-700 mt-1">
+                <label className="text-xs text-gray-500 uppercase tracking-wider">
+                  Description
+                </label>
+                <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-3 rounded-lg leading-relaxed">
                   {selectedComplaint.description}
                 </p>
               </div>
 
-              {selectedComplaint.assignedTo && (
-                <div>
-                  <label className="text-xs text-gray-500">Assigned To</label>
-                  <p className="text-sm text-gray-700 mt-1">
-                    {selectedComplaint.assignedTo}
-                  </p>
-                </div>
-              )}
-
-              {selectedComplaint.resolvedDate && (
-                <div>
-                  <label className="text-xs text-gray-500">Resolved Date</label>
-                  <p className="text-sm text-green-700 mt-1">
-                    {selectedComplaint.resolvedDate}
-                  </p>
-                </div>
-              )}
-
-              {selectedComplaint.feedback && (
-                <div>
-                  <label className="text-xs text-gray-500">
-                    Tenant Feedback
-                  </label>
-                  <p className="text-sm text-gray-700 mt-1 italic">
-                    "{selectedComplaint.feedback}"
-                  </p>
-                  {selectedComplaint.rating && (
-                    <div className="flex items-center gap-1 mt-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${i < selectedComplaint.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="flex gap-3 pt-4">
-                <button className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                  Update Status
-                </button>
-                <button className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  Contact Tenant
+                {selectedComplaint.status !== "resolved" && (
+                  <button
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      openResolveModal(selectedComplaint);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-md"
+                  >
+                    Mark as Resolved
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
                 </button>
               </div>
             </div>
@@ -746,88 +671,49 @@ function Complaints() {
         </>
       )}
 
-      {/* Add Complaint Modal */}
-      {showAddModal && (
+      {/* Resolve Confirmation Modal */}
+      {showResolveModal && selectedComplaint && (
         <>
           <div
             className="fixed inset-0 bg-black/50 z-50"
-            onClick={() => setShowAddModal(false)}
+            onClick={() => setShowResolveModal(false)}
           ></div>
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              New Complaint
-            </h2>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tenant Name
-                </label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Rahul Sharma - A-101</option>
-                  <option>Priya Patel - B-202</option>
-                  <option>Amit Kumar - C-303</option>
-                  <option>Neha Singh - A-104</option>
-                </select>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Plumbing</option>
-                  <option>Electrical</option>
-                  <option>Furniture</option>
-                  <option>Pest Control</option>
-                  <option>Noise</option>
-                  <option>Internet</option>
-                </select>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                Resolve Complaint
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to mark this complaint as resolved?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-lg mb-6">
+                <p className="text-sm text-gray-500">Complaint</p>
+                <p className="font-medium text-gray-800">
+                  {selectedComplaint.title}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  #{selectedComplaint.id} • {selectedComplaint.tenant}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority
-                </label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>High</option>
-                  <option>Medium</option>
-                  <option>Low</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  placeholder="Brief title of the complaint"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  rows="3"
-                  placeholder="Detailed description of the issue"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                ></textarea>
-              </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3">
                 <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  onClick={handleResolveComplaint}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  Submit Complaint
+                  {loading ? "Processing..." : "Yes, Resolve"}
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowResolveModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </>
       )}

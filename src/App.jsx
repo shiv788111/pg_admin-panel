@@ -9,14 +9,18 @@ import Amenities from "./pages/Amenities";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Expenses from "./pages/Expenses";
-
-import OccupancyReport from "./pages/reports/OccupancyReport";
+import Pg from "./pages/Pg";
+// import OccupancyReport from "./pages/reports/OccupancyReport";
 import TenantReport from "./pages/reports/TenantReport";
 import AgreementReport from "./pages/reports/AgreementReport";
 import DaywiseReport from "./pages/reports/DaywiseReport";
 import RefundReport from "./pages/reports/RefundReport";
 import RoomOccupancyReport from "./pages/reports/RoomOccupancyReport";
 import DueRentReport from "./pages/reports/DueRentReport";
+import Branches from "./pages/branches/Branches";
+import Managers from "./pages/managers/Managers";
+
+import MealPlans from "./pages/meals/MealPlans";
 
 function App() {
   return (
@@ -42,9 +46,13 @@ function App() {
           <Route path="payments" element={<Payments />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="amenities" element={<Amenities />} />
+          <Route path="pg" element={<Pg />} />
+          <Route path="branches" element={<Branches />} />
+          <Route path="managers" element={<Managers />} />
 
+          <Route path="meal-plans" element={<MealPlans />} />
           {/* Reports Routes */}
-          <Route path="reports/occupancy" element={<OccupancyReport />} />
+          {/* <Route path="reports/occupancy" element={<OccupancyReport />} /> */}
           <Route path="reports/tenants" element={<TenantReport />} />
           <Route path="reports/agreements" element={<AgreementReport />} />
           <Route path="reports/daywise" element={<DaywiseReport />} />
