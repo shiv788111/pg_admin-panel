@@ -38,6 +38,8 @@ import {
   deleteRoom,
 } from "../services/rooms";
 
+import { getAmenities, assignAmenityToRoom } from "../services/amenities";
+
 function Rooms() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -49,6 +51,10 @@ function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [amenities, setAmenities] = useState([]);
+  const [roomAmenities, setRoomAmenities] = useState({}); // Store amenities per room
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false);
   const [stats, setStats] = useState([
     {
       title: "Total Rooms",
@@ -101,16 +107,6 @@ function Rooms() {
     return floors[floorNumber] || `${floorNumber}th Floor`;
   };
 
-  const getAmenitiesByRoomType = (roomType) => {
-    const amenities = {
-      single: ["wifi", "ac", "tv"],
-      double: ["wifi", "ac", "tv", "attached"],
-      triple: ["wifi", "ac", "tv", "attached", "balcony"],
-      suite: ["wifi", "ac", "tv", "attached", "balcony", "kitchen"],
-    };
-    return amenities[roomType?.toLowerCase()] || ["wifi", "fan"];
-  };
-
   const getRoomColor = (roomType) => {
     const colors = {
       single: "bg-blue-500",
@@ -132,9 +128,7 @@ function Rooms() {
         const formattedRooms = response.data.map((room) => ({
           id: room.room_id,
           roomNumber: room.name,
-          type:
-            room.room_type?.charAt(0).toUpperCase() +
-              room.room_type?.slice(1) || "Unknown",
+          type: room.room_type?.charAt(0).toUpperCase() + room.room_type?.slice(1) || "Unknown",
           floor: getFloorName(room.floor),
           floor_number: room.floor,
           rent: `₹${parseFloat(room.room_monthly_rent || 0).toLocaleString()}`,
@@ -144,15 +138,22 @@ function Rooms() {
           size: `${(room.capacity || 1) * 80} sq ft`,
           status: room.is_active === 1 ? "vacant" : "maintenance",
           tenant: room.tenant_name || null,
-          amenities: getAmenitiesByRoomType(room.room_type),
           lastMaintenance: room.last_maintenance || "2024-01-10",
           nextMaintenance: room.next_maintenance || "2024-02-10",
           color: getRoomColor(room.room_type),
           electricity_type: room.electricity_type,
           branch_id: room.branch_id,
+          amenities: room.amenities || [] // Use actual amenities from API
         }));
 
         setRooms(formattedRooms);
+
+        // Store amenities mapping
+        const amenitiesMap = {};
+        formattedRooms.forEach(room => {
+          amenitiesMap[room.id] = room.amenities || [];
+        });
+        setRoomAmenities(amenitiesMap);
 
         // Update stats
         const totalRooms = formattedRooms.length;
@@ -205,6 +206,17 @@ function Rooms() {
     }
   };
 
+  const fetchAmenities = async () => {
+    try {
+      const response = await getAmenities();
+      if (response.success && response.data) {
+        setAmenities(response.data);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   // Room type counts
   const [roomTypes, setRoomTypes] = useState([
     { type: "Single", count: 0, icon: Bed, color: "blue" },
@@ -243,8 +255,19 @@ function Rooms() {
       const response = await createRoom(roomData);
 
       if (response.success) {
+        const newRoomId = response.data?.room_id || response.data?.id;
+        
+        // If amenities are selected, assign them
+        if (selectedAmenities.length > 0 && newRoomId) {
+          await assignAmenityToRoom({
+            room_id: newRoomId,
+            amenity_ids: selectedAmenities,
+          });
+        }
+        
         alert("Room added successfully!");
         setShowAddModal(false);
+        setSelectedAmenities([]); // Reset selected amenities
         resetForm();
         await fetchRooms();
       } else {
@@ -337,6 +360,7 @@ function Rooms() {
       room_monthly_rent: "",
     });
     setSelectedRoom(null);
+    setSelectedAmenities([]);
   };
 
   const openEditModal = (room) => {
@@ -358,8 +382,48 @@ function Rooms() {
     setShowViewModal(true);
   };
 
+  const openAmenitiesModal = (room) => {
+    setSelectedRoom(room);
+    // Load current amenities for this room
+    const currentAmenityIds = (roomAmenities[room.id] || []).map(a => a.amenity_id || a.id).filter(Boolean);
+    setSelectedAmenities(currentAmenityIds);
+    setShowAmenitiesModal(true);
+  };
+
+  const handleAmenityChange = (amenityId) => {
+    setSelectedAmenities((prev) => {
+      if (prev.includes(amenityId)) {
+        return prev.filter((id) => id !== amenityId);
+      }
+      return [...prev, amenityId];
+    });
+  };
+
+  const handleAssignAmenities = async () => {
+    if (!selectedRoom) return;
+    
+    try {
+      const response = await assignAmenityToRoom({
+        room_id: selectedRoom.id,
+        amenity_ids: selectedAmenities,
+      });
+
+      if (response.success) {
+        alert("Amenities assigned successfully!");
+        setShowAmenitiesModal(false);
+        await fetchRooms(); // Refresh to get updated amenities
+      } else {
+        alert(response.message || "Failed to assign amenities");
+      }
+    } catch (error) {
+      console.log(error);
+      alert("An error occurred while assigning amenities");
+    }
+  };
+
   useEffect(() => {
     fetchRooms();
+    fetchAmenities();
   }, []);
 
   // Filter rooms
@@ -450,7 +514,10 @@ function Rooms() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                setSelectedAmenities([]);
+                setShowAddModal(true);
+              }}
               className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -646,10 +713,11 @@ function Rooms() {
                 )}
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {room.amenities.map((amenity, idx) => {
-                    const AmenityIcon = amenitiesMap[amenity]?.icon;
-                    const amenityLabel = amenitiesMap[amenity]?.label;
-                    const amenityColor = amenitiesMap[amenity]?.color;
+                  {(roomAmenities[room.id] || room.amenities || []).map((amenity, idx) => {
+                    const amenityName = typeof amenity === 'string' ? amenity : amenity.name?.toLowerCase();
+                    const AmenityIcon = amenitiesMap[amenityName]?.icon;
+                    const amenityLabel = amenitiesMap[amenityName]?.label || (typeof amenity === 'string' ? amenity : amenity.name);
+                    const amenityColor = amenitiesMap[amenityName]?.color;
                     return AmenityIcon ? (
                       <div
                         key={idx}
@@ -679,6 +747,13 @@ function Rooms() {
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div>{getStatusBadge(room.status)}</div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => openAmenitiesModal(room)}
+                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Assign Amenities"
+                  >
+                    <Grid className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => openViewModal(room)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -891,6 +966,44 @@ function Rooms() {
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+
+              {/* Amenities Selection in Add Modal */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Amenities (Optional)
+                </label>
+                <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                  {amenities.map((amenity) => (
+                    <label
+                      key={amenity.amenity_id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAmenities.includes(amenity.amenity_id)}
+                        onChange={() => handleAmenityChange(amenity.amenity_id)}
+                        className="w-4 h-4"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">
+                          {amenity.name}
+                        </p>
+                        {amenity.description && (
+                          <p className="text-xs text-gray-500">
+                            {amenity.description}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                  {amenities.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-2">
+                      No amenities available
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
@@ -966,14 +1079,14 @@ function Rooms() {
                   <option value="single">Single</option>
                   <option value="double">Double</option>
                   <option value="triple">Triple</option>
-                 
+                  <option value="suite">Suite</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Floor *
                 </label>
-                {/* <select
+                <select
                   name="floor"
                   value={formData.floor}
                   onChange={handleInputChange}
@@ -984,7 +1097,7 @@ function Rooms() {
                   <option value="1">First Floor</option>
                   <option value="2">Second Floor</option>
                   <option value="3">Third Floor</option>
-                </select> */}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1108,9 +1221,10 @@ function Rooms() {
               <div>
                 <label className="text-xs text-gray-500">Amenities</label>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {selectedRoom.amenities.map((amenity, idx) => {
-                    const AmenityIcon = amenitiesMap[amenity]?.icon;
-                    const amenityLabel = amenitiesMap[amenity]?.label;
+                  {(roomAmenities[selectedRoom.id] || selectedRoom.amenities || []).map((amenity, idx) => {
+                    const amenityName = typeof amenity === 'string' ? amenity : amenity.name?.toLowerCase();
+                    const AmenityIcon = amenitiesMap[amenityName]?.icon;
+                    const amenityLabel = amenitiesMap[amenityName]?.label || (typeof amenity === 'string' ? amenity : amenity.name);
                     return AmenityIcon ? (
                       <div
                         key={idx}
@@ -1141,6 +1255,80 @@ function Rooms() {
                 className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Amenities Modal */}
+      {showAmenitiesModal && selectedRoom && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowAmenitiesModal(false)}
+          ></div>
+
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl z-50 w-full max-w-lg p-6">
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Assign Amenities
+              </h2>
+              <button
+                onClick={() => setShowAmenitiesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* ROOM */}
+            <div className="mb-5">
+              <p className="text-sm text-gray-500">Room</p>
+              <h3 className="text-lg font-semibold text-gray-800">
+                {selectedRoom.roomNumber}
+              </h3>
+            </div>
+
+            {/* AMENITIES */}
+            <div className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto">
+              {amenities.map((amenity) => (
+                <label
+                  key={amenity.amenity_id}
+                  className="flex items-center gap-3 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedAmenities.includes(amenity.amenity_id)}
+                    onChange={() => handleAmenityChange(amenity.amenity_id)}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-800">{amenity.name}</p>
+                    {amenity.description && (
+                      <p className="text-xs text-gray-500">
+                        {amenity.description}
+                      </p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* FOOTER */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAmenitiesModal(false)}
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignAmenities}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+              >
+                Save Amenities
               </button>
             </div>
           </div>

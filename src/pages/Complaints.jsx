@@ -53,6 +53,7 @@ function Complaints() {
         room_no: complaint.room_no,
         branch_name: complaint.branch_name,
         title: complaint.title,
+        
         description: complaint.description,
         category:
           complaint.category?.charAt(0).toUpperCase() +
@@ -604,7 +605,8 @@ function Complaints() {
                     Room & Branch
                   </label>
                   <p className="text-sm text-gray-700 mt-1">
-                    Room {selectedComplaint.room_no} • {selectedComplaint.branch_name}
+                    Room {selectedComplaint.room_no} •{" "}
+                    {selectedComplaint.branch_name}
                   </p>
                 </div>
                 <div>

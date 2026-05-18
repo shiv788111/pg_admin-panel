@@ -472,92 +472,156 @@ function Amenities() {
       </div>
 
       {/* Amenities List - Category Wise */}
-      <div className="space-y-6">
-        {Object.entries(amenitiesByCategory).map(([catKey, catAmenities]) => {
-          if (catAmenities.length === 0) return null;
-          const cat = categories[catKey];
+    {/* Amenities List - Category Wise */}
+<div className="space-y-6">
+  {Object.entries(amenitiesByCategory).map(([catKey, catAmenities]) => {
+    if (catAmenities.length === 0) return null;
+    const cat = categories[catKey];
 
-          return (
-            <div
-              key={catKey}
-              className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all"
-            >
-              <div className={`px-4 py-3 ${cat.color} border-b`}>
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-800">{cat.name}</h2>
-                  <span className="text-sm text-gray-500">
-                    {catAmenities.length} amenities
-                  </span>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {catAmenities.map((amenity) => {
-                  const IconComponent = iconMap[amenity.icon] || Sparkles;
+    return (
+      <div
+        key={catKey}
+        className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all"
+      >
+        <div className={`px-4 py-3 ${cat.color} border-b`}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800">{cat.name}</h2>
+            <span className="text-sm text-gray-500">
+              {catAmenities.length} amenities
+            </span>
+          </div>
+        </div>
 
-                  return (
-                    <div
-                      key={amenity.id}
-                      className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <IconComponent className="w-5 h-5 text-gray-600" />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
+                  Amenity
+                </th>
+
+                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
+                  Description
+                </th>
+
+                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
+                  Category
+                </th>
+
+                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
+                  Created
+                </th>
+
+                <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600">
+                  Status
+                </th>
+
+                <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {catAmenities.map((amenity) => {
+                const IconComponent =
+                  iconMap[amenity.icon] || Sparkles;
+
+                return (
+                  <tr
+                    key={amenity.id}
+                    className="border-b hover:bg-gray-50 transition-all"
+                  >
+                    {/* Amenity */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center">
+                          <IconComponent className="w-5 h-5 text-gray-700" />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-800">
-                              {amenity.name}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              ID: {amenity.id}
-                            </span>
-                          </div>
-                          {amenity.description && (
-                            <p className="text-sm text-gray-500 mt-0.5">
-                              {amenity.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-1">
-                            <span className="text-xs text-gray-400">
-                              Added:{" "}
-                              {new Date(
-                                amenity.created_at,
-                              ).toLocaleDateString()}
-                            </span>
-                          </div>
+
+                        <div>
+                          <h3 className="font-semibold text-gray-800">
+                            {amenity.name}
+                          </h3>
+
+                          <p className="text-xs text-gray-400">
+                            ID: {amenity.id}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    </td>
+
+                    {/* Description */}
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-gray-600 max-w-xs">
+                        {amenity.description || "No description"}
+                      </p>
+                    </td>
+
+                    {/* Category */}
+                    <td className="px-6 py-4">
+                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 capitalize">
+                        {amenity.category}
+                      </span>
+                    </td>
+
+                    {/* Created */}
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-gray-500">
+                        {new Date(
+                          amenity.created_at
+                        ).toLocaleDateString()}
+                      </p>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <CheckCircle className="w-3 h-3" />
+                        Active
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openAssignModal(amenity)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Assign to room"
+                          className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all"
+                          title="Assign"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
+
                         <button
                           onClick={() => openEditModal(amenity)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+
                         <button
-                          onClick={() => handleDeleteAmenity(amenity.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={() =>
+                            handleDeleteAmenity(amenity.id)
+                          }
+                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
+    );
+  })}
+</div>
 
       {/* Empty State */}
       {filteredAmenities.length === 0 && !loading && (

@@ -21,6 +21,7 @@ import Branches from "./pages/branches/Branches";
 import Managers from "./pages/managers/Managers";
 
 import MealPlans from "./pages/meals/MealPlans";
+import Beds from "./pages/Beds";
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
           <Route path="tenants" element={<Tenants />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="rooms" element={<Rooms />} />
+          <Route path="beds" element={<Beds />} />
           <Route path="payments" element={<Payments />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="amenities" element={<Amenities />} />

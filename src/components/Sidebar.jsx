@@ -26,6 +26,7 @@ import {
   X,
   Building2,
   UtensilsCrossed,
+
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -63,6 +64,11 @@ function Sidebar({ isMobileOpen, onClose }) {
     { path: "/", name: "Dashboard", icon: LayoutDashboard },
     { path: "/pg", name: "PG", icon: Home },
     {
+      path: "/beds",
+      name: "Beds",
+      icon: BedDouble,
+    },
+    {
       path: "/management",
       name: "Management",
       icon: Building2,
@@ -78,7 +84,6 @@ function Sidebar({ isMobileOpen, onClose }) {
           name: "Managers",
           icon: UserCog,
         },
-       
       ],
     },
     { path: "/tenants", name: "Tenants", icon: Users },
@@ -132,7 +137,7 @@ function Sidebar({ isMobileOpen, onClose }) {
     { path: "/attendance", name: "Attendance", icon: Calendar },
     { path: "/expenses", name: "Expenses", icon: TrendingUp },
     { path: "/complaints", name: "Complaints", icon: ClipboardList },
-    { path: "/settings", name: "Settings", icon: UserCog },
+   
   ];
 
   const handleLogout = () => {
